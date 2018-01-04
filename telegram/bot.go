@@ -38,9 +38,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = readJSON(configFile)
+	err = loadConfigFromJSON(configFile)
 	if err != nil {
-		log.Fatalf("malformed configuration file: %s", err)
+		log.Fatalf("failed to load configuration from file: %s", err)
+	}
+	err = loadConfigFromEnv()
+	if err != nil {
+		log.Fatalf("failed to load configuration from environment variables: %s", err)
 	}
 
 	if config.Address == "" {
@@ -55,9 +59,6 @@ func main() {
 	}
 	inlineQueryCacheTimeSeconds = int(config.InlineQueryCacheTime.Duration.Seconds())
 
-	if config.Shorteners.Google.APIKey == "" {
-		log.Print("Google highly recommends to use an API key")
-	}
 	googleShortener = monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
 		&http.Client{Timeout: config.Shorteners.Google.Timeout.Duration})
 	isgdShortener = monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
@@ -66,7 +67,7 @@ func main() {
 	server := &http.Server{ReadTimeout: config.ReadTimeout.Duration, WriteTimeout: config.WriteTimeout.Duration,
 		Handler: http.HandlerFunc(handleUpdate), Addr: config.Address}
 	log.Printf("about to listen for updates on %s", config.Address)
-	if config.TLS.Certificate == "" || config.TLS.Key == "" {
+	if config.TLS == nil || config.TLS.Certificate == "" || config.TLS.Key == "" {
 		log.Fatal(server.ListenAndServe())
 	} else {
 		log.Fatal(server.ListenAndServeTLS(config.TLS.Certificate, config.TLS.Key))
@@ -94,13 +95,10 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch {
-	case upd.Message != nil:
-		handleMessage(w, upd.Message)
-	case upd.InlineQuery != nil:
+	if upd.InlineQuery != nil {
 		handleInlineQuery(w, upd.InlineQuery)
-	default:
-		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.WriteHeader(http.StatusNotFound)
 		log.Print("webhook configured to receive unnecessary updates")
 	}
 }
@@ -115,27 +113,6 @@ func isShortURL(u *url.URL) (bool, monstrator.Shortener) {
 		return true, tinyURLShortener
 	}
 	return false, nil
-}
-
-const (
-	shortenCommand string = "/shorten"
-	expandCommand  string = "/expand"
-)
-
-func handleMessage(w http.ResponseWriter, m *message) {
-	if m.Text == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Print("empty message update")
-		return
-	}
-	if m.Chat == nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Print("message update belongs to no chat")
-		return
-	}
-
-	// TODO: Implement commands.
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
@@ -159,9 +136,23 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		longURL, err := shortener.Expand(u)
 		if err != nil {
 			w.WriteHeader(http.StatusNoContent)
-			handleExpandError(err, func() {
+			logError := func() {
 				log.Printf("failed to expand %s with %s: %s", u, shortenerNames[shortener], err)
-			})
+			}
+			switch err := err.(type) {
+			case *monstrator.GoogleShortenerError:
+				if err.Code != 404 {
+					logError()
+				}
+			case *monstrator.IsgdShortenerError:
+				if err.Code != 400 {
+					logError()
+				}
+			case monstrator.TinyURLShortenerError:
+				if err != 404 {
+					logError()
+				}
+			}
 			return
 		}
 
@@ -207,23 +198,6 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 	answerInlineQuery(w, results)
 }
 
-func sendMessage(w http.ResponseWriter, chatID, text string) {
-	if text == "" {
-		panic("attempting to send message without text")
-	}
-	enc := json.NewEncoder(w)
-	err := enc.Encode(map[string]interface{}{
-		"method":  sendMessageMethod,
-		"text":    text,
-		"chat_id": chatID})
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		handleEncodeError(err, func() {
-			log.Printf("failed to send message: %s", err)
-		})
-	}
-}
-
 var inlineQueryCacheTimeSeconds int
 
 func answerInlineQuery(w http.ResponseWriter, results []interface{}) {
@@ -237,38 +211,15 @@ func answerInlineQuery(w http.ResponseWriter, results []interface{}) {
 		"cache_time": inlineQueryCacheTimeSeconds})
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
-		handleEncodeError(err, func() {
+		switch err := err.(type) {
+		case *json.MarshalerError:
+			panic(err)
+		case *json.UnsupportedTypeError:
+			panic(err)
+		case *json.UnsupportedValueError:
+			panic(err)
+		default:
 			log.Printf("failed to answer inline query: %s", err)
-		})
-	}
-}
-
-func handleExpandError(err error, logError func()) {
-	switch err := err.(type) {
-	case *monstrator.GoogleShortenerError:
-		if err.Code != 404 {
-			logError()
 		}
-	case *monstrator.IsgdShortenerError:
-		if err.Code != 400 {
-			logError()
-		}
-	case monstrator.TinyURLShortenerError:
-		if err != 404 {
-			logError()
-		}
-	}
-}
-
-func handleEncodeError(err error, logError func()) {
-	switch err := err.(type) {
-	case *json.MarshalerError:
-		panic(err)
-	case *json.UnsupportedTypeError:
-		panic(err)
-	case *json.UnsupportedValueError:
-		panic(err)
-	default:
-		logError()
 	}
 }

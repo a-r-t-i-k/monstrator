@@ -13,7 +13,6 @@ const (
 )
 
 type update struct {
-	Message     *message     `json:"message"`
 	InlineQuery *inlineQuery `json:"inline_query"`
 }
 
@@ -39,13 +38,4 @@ func (article *inlineQueryResultArticle) MarshalJSON() ([]byte, error) {
 
 type inputTextMessageContent struct {
 	Text string `json:"message_text"`
-}
-
-type message struct {
-	Chat *chat  `json:"chat"`
-	Text string `json:"text"`
-}
-
-type chat struct {
-	ID int64
 }
