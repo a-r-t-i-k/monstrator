@@ -8,8 +8,6 @@ import (
 	"reflect"
 )
 
-const defaultConfigPath string = "configuration.json"
-
 var config = new(configuration)
 
 type configuration struct {

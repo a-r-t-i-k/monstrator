@@ -26,24 +26,20 @@ func main() {
 		flag.PrintDefaults()
 	}
 	var configPath string
-	flag.StringVar(&configPath, "c", defaultConfigPath, "`path` to read configuration from")
+	flag.StringVar(&configPath, "c", "", "`path` to read configuration from")
 	flag.Parse()
-	if configPath == defaultConfigPath {
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			flag.Usage()
-			return
+
+	if configPath != "" {
+		configFile, err := os.Open(configPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = loadConfigFromJSON(configFile)
+		if err != nil {
+			log.Fatalf("failed to load configuration from file: %s", err)
 		}
 	}
-
-	configFile, err := os.Open(configPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = loadConfigFromJSON(configFile)
-	if err != nil {
-		log.Fatalf("failed to load configuration from file: %s", err)
-	}
-	err = loadConfigFromEnv()
+	err := loadConfigFromEnv()
 	if err != nil {
 		log.Fatalf("failed to load configuration from environment variables: %s", err)
 	}
