@@ -34,6 +34,7 @@ func main() {
 			return
 		}
 	}
+
 	configFile, err := os.Open(configPath)
 	if err != nil {
 		log.Fatal(err)
