@@ -8,7 +8,9 @@ import (
 	"reflect"
 )
 
-var config struct {
+var config = new(configuration)
+
+type configuration struct {
 	Token                string   `json:"token" env:"TOKEN"`
 	Address              string   `json:"address" env:"ADDRESS"`
 	ReadTimeout          duration `json:"readTimeout" env:"READ_TIMEOUT"`
@@ -46,7 +48,7 @@ func loadConfigFromEnv() error {
 			fieldValue := structValue.Field(i)
 			field := structType.Field(i)
 			kind := field.Type.Kind()
-			if !fieldValue.CanSet() {
+			if !fieldValue.IsValid() || !fieldValue.CanSet() {
 				continue
 			}
 			if key, ok := field.Tag.Lookup("env"); ok {
@@ -56,8 +58,7 @@ func loadConfigFromEnv() error {
 						fieldValue.SetString(value)
 					default:
 						if u, ok := fieldValue.Addr().Interface().(encoding.TextUnmarshaler); ok {
-							err := u.UnmarshalText([]byte(value))
-							if err != nil {
+							if err := u.UnmarshalText([]byte(value)); err != nil {
 								return err
 							}
 						} else {
@@ -66,12 +67,14 @@ func loadConfigFromEnv() error {
 					}
 				}
 			} else if kind == reflect.Struct {
-				return unmarshal(fieldValue)
+				if err := unmarshal(fieldValue); err != nil {
+					return err
+				}
 			}
 		}
 		return nil
 	}
-	return unmarshal(reflect.ValueOf(config))
+	return unmarshal(reflect.ValueOf(config).Elem())
 }
 
 type envUnmarshalTypeError struct {
