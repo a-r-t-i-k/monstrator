@@ -64,7 +64,7 @@ func main() {
 	server := &http.Server{ReadTimeout: config.ReadTimeout.Duration, WriteTimeout: config.WriteTimeout.Duration,
 		Handler: http.HandlerFunc(handleUpdate), Addr: config.Address}
 	log.Printf("about to listen for updates on %s", config.Address)
-	if config.TLS == nil || config.TLS.Certificate == "" || config.TLS.Key == "" {
+	if config.TLS.Certificate == "" || config.TLS.Key == "" {
 		log.Fatal(server.ListenAndServe())
 	} else {
 		log.Fatal(server.ListenAndServeTLS(config.TLS.Certificate, config.TLS.Key))
