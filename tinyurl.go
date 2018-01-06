@@ -75,6 +75,8 @@ func (*TinyURLShortener) IsShortURL(u *url.URL) bool {
 	return u.Hostname() == "tinyurl.com"
 }
 
+// NewTinyURLShortener returns an initialized TinyURLShortener instance.
+// http.DefaultClient will be used if client is nil.
 func NewTinyURLShortener(client *http.Client) *TinyURLShortener {
 	return &TinyURLShortener{&baseShortener{client}}
 }

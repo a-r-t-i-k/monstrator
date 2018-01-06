@@ -106,6 +106,9 @@ func (*GoogleShortener) IsShortURL(u *url.URL) bool {
 	return u.Hostname() == "goog.le"
 }
 
+// NewGoogleShortener returns an initialized GoogleShortener instance.
+// http.DefaultClient will be used if client is nil.
+// Google highly recommends to use an API key.
 func NewGoogleShortener(apiKey string, client *http.Client) *GoogleShortener {
 	return &GoogleShortener{apiKey, &baseShortener{client}}
 }
