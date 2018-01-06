@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/r3turnz/monstrator"
@@ -82,7 +83,7 @@ var shortenerNames = map[monstrator.Shortener]string{
 
 func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	// Ensure update comes from Telegram.
-	if r.URL.Path != config.Token {
+	if strings.TrimPrefix(r.URL.Path, "/") != config.Token {
 		w.WriteHeader(http.StatusForbidden)
 		log.Printf("unauthorized update from %s", r.RemoteAddr)
 		return
