@@ -114,7 +114,7 @@ func NewGoogleShortener(apiKey string, client *http.Client) *GoogleShortener {
 type GoogleShortenerError struct {
 	Code    int
 	Message string
-	Errors  map[string]interface{}
+	Errors  []interface{}
 }
 
 func (e *GoogleShortenerError) Error() string {
