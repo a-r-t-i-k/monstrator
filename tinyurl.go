@@ -38,7 +38,10 @@ func (shortener *TinyURLShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, TinyURLShortenerError(resp.StatusCode)
 	}
-	body := readBody(resp)
+	body, err := readBody(resp)
+	if err != nil {
+		return nil, err
+	}
 	shortURL, err := url.Parse(body)
 	if err != nil {
 		return nil, err

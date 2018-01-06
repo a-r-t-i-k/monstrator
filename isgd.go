@@ -45,7 +45,10 @@ func (shortener *IsgdShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	}
 	defer resp.Body.Close()
 
-	body := readBody(resp)
+	body, err := readBody(resp)
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, &IsgdShortenerError{resp.StatusCode, trimIsgdShortenerErrorMessagePrefix(body)}
 	}
@@ -69,7 +72,10 @@ func (shortener *IsgdShortener) Expand(shortURL *url.URL) (*url.URL, error) {
 	}
 	defer resp.Body.Close()
 
-	body := readBody(resp)
+	body, err := readBody(resp)
+	if err != nil {
+		return nil, err
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, &IsgdShortenerError{resp.StatusCode, trimIsgdShortenerErrorMessagePrefix(body)}
 	}
