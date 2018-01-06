@@ -13,6 +13,7 @@ var config = new(configuration)
 type configuration struct {
 	Token                string   `json:"token" env:"TOKEN"`
 	Address              string   `json:"address" env:"ADDRESS"`
+	Port                 string   `json:"port" env:"PORT"`
 	ReadTimeout          duration `json:"readTimeout" env:"READ_TIMEOUT"`
 	WriteTimeout         duration `json:"writeTimeout" env:"WRITE_TIMEOUT"`
 	InlineQueryCacheTime duration `json:"inlineQueryCacheTime" env:"INLINE_QUERY_CACHE_TIME"`

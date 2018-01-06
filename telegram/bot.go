@@ -45,7 +45,11 @@ func main() {
 	}
 
 	if config.Address == "" {
-		log.Fatal("no address to listen on for updates")
+		if config.Port != "" {
+			config.Address = ":" + config.Port
+		} else {
+			log.Fatal("no address to listen on for updates")
+		}
 	}
 	if config.Token == "" {
 		log.Fatal("no authentication token")
