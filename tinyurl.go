@@ -10,7 +10,7 @@ var tinyURLShortenEndpoint *url.URL
 
 func init() {
 	var err error
-	tinyURLShortenEndpoint, err = url.Parse("http://tinyurl.com/api-create.php")
+	tinyURLShortenEndpoint, err = url.Parse("https://tinyurl.com/api-create.php")
 	if err != nil {
 		panic(err)
 	}
@@ -50,6 +50,7 @@ func (shortener *TinyURLShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 
 // Expand determines the long URL of shortURL. There is no API endpoint for expanding and the Location header is therefore utilized.
 func (shortener *TinyURLShortener) Expand(shortURL *url.URL) (*url.URL, error) {
+	shortURL.Scheme = "https"
 	resp, err := shortener.client().Get(shortURL.String())
 	if err != nil {
 		return nil, err
