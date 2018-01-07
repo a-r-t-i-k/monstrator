@@ -131,7 +131,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 	}
 
 	u, err := url.Parse(q.Text)
-	if err != nil {
+	if err != nil || u.Hostname() == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
