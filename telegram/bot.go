@@ -118,11 +118,13 @@ func isShortURL(u *url.URL) (bool, monstrator.Shortener) {
 }
 
 func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
+	q.ID = strings.TrimSpace(q.ID)
 	if q.ID == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		log.Print("empty inline query ID")
 		return
 	}
+	q.Text = strings.TrimSpace(q.Text)
 	if q.Text == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
