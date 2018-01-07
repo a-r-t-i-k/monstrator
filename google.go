@@ -31,16 +31,6 @@ func (shortener *GoogleShortener) addAPIKey(query *url.Values) {
 	}
 }
 
-type shortenResponse struct {
-	ShortURL string                `json:"id"`
-	Error    *GoogleShortenerError `json:"error"`
-}
-
-type expandResponse struct {
-	LongURL string                `json:"longUrl"`
-	Error   *GoogleShortenerError `json:"error"`
-}
-
 // Shorten requests the short URL of longURL.
 func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	u := googleEndpoint
@@ -57,7 +47,10 @@ func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	defer resp.Body.Close()
 
 	dec := json.NewDecoder(resp.Body)
-	var res shortenResponse
+	var res struct {
+		ShortURL string                `json:"id"`
+		Error    *GoogleShortenerError `json:"error"`
+	}
 	err = dec.Decode(&res)
 	if err != nil {
 		return nil, err
@@ -87,7 +80,10 @@ func (shortener *GoogleShortener) Expand(shortURL *url.URL) (*url.URL, error) {
 	defer resp.Body.Close()
 
 	dec := json.NewDecoder(resp.Body)
-	var res expandResponse
+	var res struct {
+		LongURL string                `json:"longUrl"`
+		Error   *GoogleShortenerError `json:"error"`
+	}
 	err = dec.Decode(&res)
 	if err != nil {
 		return nil, err
