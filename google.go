@@ -1,6 +1,7 @@
 package monstrator
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -47,9 +48,9 @@ func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	shortener.addAPIKey(&query)
 	u.RawQuery = query.Encode()
 
-	payload := url.Values{}
-	payload.Set("longUrl", longURL.String())
-	resp, err := shortener.client().PostForm(u.String(), payload)
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(map[string]string{"longUrl": longURL.String()})
+	resp, err := shortener.client().Post(u.String(), "application/json", buf)
 	if err != nil {
 		return nil, err
 	}
