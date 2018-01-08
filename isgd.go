@@ -93,7 +93,7 @@ func (*IsgdShortener) IsShortURL(u *url.URL) bool {
 
 // Name returns the name of IsgdShortener.
 func (*IsgdShortener) Name() string {
-	return "isgd"
+	return "is.gd"
 }
 
 // NewIsgdShortener returns initialized IsgdShortener instance.
@@ -110,7 +110,7 @@ type IsgdShortenerError struct {
 
 func (e *IsgdShortenerError) Error() string {
 	if e.Message != "" {
-		return fmt.Sprintf("Isgd URL shortener reported failure: %s", e.Message)
+		return fmt.Sprintf("is.gd URL shortener reported failure: %s", e.Message)
 	}
-	return "Isgd URL shortener reported failure"
+	return "is.gd URL shortener reported failure"
 }
