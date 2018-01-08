@@ -55,7 +55,7 @@ func main() {
 	if config.Token == "" {
 		log.Fatal("no authentication token")
 	}
-	baseURL, err = url.Parse(fmt.Sprintf("https://api.telegram.org/bot%s/", url.PathEscape(config.Token)))
+	baseURL, err = url.Parse(fmt.Sprintf("https://api.telegram.org/bot%s/", config.Token))
 	if err != nil {
 		panic(err)
 	}
