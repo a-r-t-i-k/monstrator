@@ -110,7 +110,7 @@ type IsgdShortenerError struct {
 
 func (e *IsgdShortenerError) Error() string {
 	if e.Message != "" {
-		return fmt.Sprintf("Isgd URl shortener reported failure: %s", e.Message)
+		return fmt.Sprintf("Isgd URL shortener reported failure: %s", e.Message)
 	}
-	return "Isgd URl shortener reported failure"
+	return "Isgd URL shortener reported failure"
 }
