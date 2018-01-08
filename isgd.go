@@ -91,6 +91,11 @@ func (*IsgdShortener) IsShortURL(u *url.URL) bool {
 	return u.Hostname() == "is.gd"
 }
 
+// Name returns the name of IsgdShortener.
+func (*IsgdShortener) Name() string {
+	return "isgd"
+}
+
 // NewIsgdShortener returns initialized IsgdShortener instance.
 // http.DefaultClient will be used if client is nil.
 func NewIsgdShortener(client *http.Client) *IsgdShortener {

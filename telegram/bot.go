@@ -16,8 +16,8 @@ import (
 
 var (
 	googleShortener  *monstrator.GoogleShortener
-	tinyURLShortener *monstrator.TinyURLShortener
 	isgdShortener    *monstrator.IsgdShortener
+	tinyURLShortener *monstrator.TinyURLShortener
 )
 
 func main() {
@@ -75,11 +75,6 @@ func main() {
 		log.Fatal(server.ListenAndServeTLS(config.TLS.Certificate, config.TLS.Key))
 	}
 }
-
-var shortenerNames = map[monstrator.Shortener]string{
-	googleShortener:  "Google",
-	isgdShortener:    "isgd",
-	tinyURLShortener: "TinyURL"}
 
 func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	// Ensure update comes from Telegram.
@@ -141,7 +136,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		if err != nil {
 			w.WriteHeader(http.StatusNoContent)
 			logError := func() {
-				log.Printf("failed to expand %s with %s: %s", u, shortenerNames[shortener], err)
+				log.Printf("failed to expand %s with %s: %s", u, shortener.Name(), err)
 			}
 			switch err := err.(type) {
 			case *monstrator.GoogleShortenerError:
@@ -160,25 +155,24 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 			return
 		}
 
-		shortenerName := shortenerNames[shortener]
 		encodedURL := longURL.String()
 		results := []interface{}{
-			&inlineQueryResultArticle{ID: shortenerName, Title: shortenerName, URL: encodedURL,
+			&inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
 				InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
-		answerInlineQuery(w, results)
+		answerInlineQuery(w, q.ID, results)
 		return
 	}
 
-	shortURLs := make(map[monstrator.Shortener]*url.URL)
+	shortURLs := make(map[string]*url.URL)
 	wg := sync.WaitGroup{}
 	wg.Add(3)
 	var shorten = func(shortener monstrator.Shortener) {
 		defer wg.Done()
 		shortURL, err := shortener.Shorten(u)
 		if err != nil {
-			log.Printf("failed to shorten %s with the %s shortener: %s", u, shortenerNames[shortener], err)
+			log.Printf("failed to shorten %s with the %s shortener: %s", u, shortener.Name(), err)
 		} else {
-			shortURLs[shortener] = shortURL
+			shortURLs[shortener.Name()] = shortURL
 		}
 	}
 	go shorten(googleShortener)
@@ -192,27 +186,27 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 	}
 	results := make([]interface{}, len(shortURLs))
 	i := 0
-	for shortener, shortURL := range shortURLs {
+	for name, shortURL := range shortURLs {
 		encodedURL := shortURL.String()
-		shortenerName := shortenerNames[shortener]
-		results[i] = &inlineQueryResultArticle{ID: shortenerName, Title: shortenerName, URL: encodedURL,
+		results[i] = &inlineQueryResultArticle{ID: name, Title: name, URL: encodedURL,
 			InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
 		i++
 	}
-	answerInlineQuery(w, results)
+	answerInlineQuery(w, q.ID, results)
 }
 
 var inlineQueryCacheTimeSeconds int
 
-func answerInlineQuery(w http.ResponseWriter, results []interface{}) {
+func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) {
 	if len(results) == 0 {
 		panic("attempting to answer inline query without results")
 	}
 	enc := json.NewEncoder(w)
 	err := enc.Encode(map[string]interface{}{
-		"method":     answerInlineQueryMethod,
-		"results":    results,
-		"cache_time": inlineQueryCacheTimeSeconds})
+		"method":          answerInlineQueryMethod,
+		"inline_query_id": ID,
+		"results":         results,
+		"cache_time":      inlineQueryCacheTimeSeconds})
 	if err != nil {
 		w.WriteHeader(http.StatusNoContent)
 		switch err := err.(type) {
