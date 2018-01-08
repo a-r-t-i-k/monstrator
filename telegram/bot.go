@@ -37,12 +37,12 @@ func main() {
 		}
 		err = loadConfigFromJSON(configFile)
 		if err != nil {
-			log.Fatalf("failed to load configuration from file: %s", err)
+			log.Fatalf("failed to load configuration from file: %v", err)
 		}
 	}
 	err := loadConfigFromEnv()
 	if err != nil {
-		log.Fatalf("failed to load configuration from environment variables: %s", err)
+		log.Fatalf("failed to load configuration from environment variables: %v", err)
 	}
 
 	if config.Address == "" {
@@ -68,7 +68,7 @@ func main() {
 
 	server := &http.Server{ReadTimeout: config.ReadTimeout.Duration, WriteTimeout: config.WriteTimeout.Duration,
 		Handler: http.HandlerFunc(handleUpdate), Addr: config.Address}
-	log.Printf("about to listen for updates on %s", config.Address)
+	log.Printf("about to listen for updates on %v", config.Address)
 	if config.TLS.Certificate == "" || config.TLS.Key == "" {
 		log.Fatal(server.ListenAndServe())
 	} else {
@@ -80,7 +80,7 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	// Ensure update comes from Telegram.
 	if strings.TrimPrefix(r.URL.Path, "/") != config.Token {
 		w.WriteHeader(http.StatusForbidden)
-		log.Printf("unauthorized update from %s", r.RemoteAddr)
+		log.Printf("unauthorized update from %v", r.RemoteAddr)
 		return
 	}
 
@@ -136,7 +136,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		if err != nil {
 			w.WriteHeader(http.StatusNoContent)
 			logError := func() {
-				log.Printf("failed to expand %s with %s: %s", u, shortener.Name(), err)
+				log.Printf("failed to expand %v with %s: %v", u, shortener.Name(), err)
 			}
 			switch err := err.(type) {
 			case *monstrator.GoogleShortenerError:
@@ -170,7 +170,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		defer wg.Done()
 		shortURL, err := shortener.Shorten(u)
 		if err != nil {
-			log.Printf("failed to shorten %s with the %s shortener: %s", u, shortener.Name(), err)
+			log.Printf("failed to shorten %v with the %s shortener: %v", u, shortener.Name(), err)
 		} else {
 			shortURLs[shortener.Name()] = shortURL
 		}
@@ -217,7 +217,7 @@ func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) 
 		case *json.UnsupportedValueError:
 			panic(err)
 		default:
-			log.Printf("failed to answer inline query: %s", err)
+			log.Printf("failed to answer inline query: %v", err)
 		}
 	}
 }
