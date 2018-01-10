@@ -27,12 +27,12 @@ func trimIsgdShortenerErrorMessagePrefix(message string) string {
 }
 
 // IsgdShortener communicates with the is.gd URL shortener API.
-// If Client is nil, the DefaultClient will be used.
+// If Client is nil, http.DefaultClient will be used.
 type IsgdShortener struct {
 	*baseShortener
 }
 
-// Shorten requests the short URL of longURL.
+// Shorten requests the shortened URL.
 func (shortener *IsgdShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	u := isgdShortenEndpoint
 	query := u.Query()
@@ -52,18 +52,24 @@ func (shortener *IsgdShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, &IsgdShortenerError{resp.StatusCode, trimIsgdShortenerErrorMessagePrefix(body)}
 	}
-	shortURL, err := url.Parse(body)
+	shortenedURL, err := url.Parse(body)
 	if err != nil {
 		return nil, err
 	}
-	return shortURL, nil
+	if !shortener.IsShortenedURL(shortenedURL) {
+		return nil, NotShortenedURLError{shortenedURL}
+	}
+	return shortenedURL, nil
 }
 
-// Expand determines the long URL of shortURL.
-func (shortener *IsgdShortener) Expand(shortURL *url.URL) (*url.URL, error) {
+// Expand requests the long URL.
+func (shortener *IsgdShortener) Expand(shortenedURL *url.URL) (*url.URL, error) {
+	if !shortener.IsShortenedURL(shortenedURL) {
+		return nil, NotShortenedURLError{shortenedURL}
+	}
 	u := isgdExpandEndpoint
 	query := u.Query()
-	query.Add("shorturl", shortURL.String())
+	query.Add("shorturl", shortenedURL.String())
 	u.RawQuery = query.Encode()
 
 	resp, err := shortener.client().Get(u.String())
@@ -86,9 +92,9 @@ func (shortener *IsgdShortener) Expand(shortURL *url.URL) (*url.URL, error) {
 	return longURL, nil
 }
 
-// IsShortURL determines whether the URL is shortened.
-func (*IsgdShortener) IsShortURL(u *url.URL) bool {
-	return u.Hostname() == "is.gd"
+// IsShortenedURL determines whether the URL is shortened.
+func (*IsgdShortener) IsShortenedURL(u *url.URL) bool {
+	return u.IsAbs() && hasHTTPScheme(u) && u.Hostname() == "is.gd" && len(u.Path) > 1
 }
 
 // Name returns the name of IsgdShortener.
@@ -96,8 +102,7 @@ func (*IsgdShortener) Name() string {
 	return "is.gd"
 }
 
-// NewIsgdShortener returns initialized IsgdShortener instance.
-// http.DefaultClient will be used if client is nil.
+// NewIsgdShortener returns an initialized IsgdShortener instance.
 func NewIsgdShortener(client *http.Client) *IsgdShortener {
 	return &IsgdShortener{&baseShortener{client}}
 }
@@ -110,7 +115,7 @@ type IsgdShortenerError struct {
 
 func (e *IsgdShortenerError) Error() string {
 	if e.Message != "" {
-		return fmt.Sprintf("is.gd URL shortener reported failure: %s", e.Message)
+		return fmt.Sprintf("shortener reported failure: %s", e.Message)
 	}
-	return "is.gd URL shortener reported failure"
+	return "shortener reported failure"
 }

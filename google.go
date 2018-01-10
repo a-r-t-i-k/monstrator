@@ -19,7 +19,7 @@ func init() {
 }
 
 // GoogleShortener communicates with the Google URL shortener API.
-// If Client is nil, the DefaultClient will be used.
+// If Client is nil, http.DefaultClient will be used.
 type GoogleShortener struct {
 	APIKey string
 	*baseShortener
@@ -31,7 +31,7 @@ func (shortener *GoogleShortener) addAPIKey(query *url.Values) {
 	}
 }
 
-// Shorten requests the short URL of longURL.
+// Shorten requests the shortened URL.
 func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	u := googleEndpoint
 	query := u.Query()
@@ -48,8 +48,8 @@ func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 
 	dec := json.NewDecoder(resp.Body)
 	var res struct {
-		ShortURL string                `json:"id"`
-		Error    *GoogleShortenerError `json:"error"`
+		ShortenedURL string                `json:"id"`
+		Error        *GoogleShortenerError `json:"error"`
 	}
 	err = dec.Decode(&res)
 	if err != nil {
@@ -58,18 +58,24 @@ func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, res.Error
 	}
-	shortURL, err := url.Parse(res.ShortURL)
+	shortenedURL, err := url.Parse(res.ShortenedURL)
 	if err != nil {
 		return nil, err
 	}
-	return shortURL, nil
+	if !shortener.IsShortenedURL(shortenedURL) {
+		return nil, NotShortenedURLError{shortenedURL}
+	}
+	return shortenedURL, nil
 }
 
-// Expand determines the long URL of shortURL.
-func (shortener *GoogleShortener) Expand(shortURL *url.URL) (*url.URL, error) {
+// Expand requests the long URL.
+func (shortener *GoogleShortener) Expand(shortenedURL *url.URL) (*url.URL, error) {
+	if !shortener.IsShortenedURL(shortenedURL) {
+		return nil, NotShortenedURLError{shortenedURL}
+	}
 	u := googleEndpoint
 	query := u.Query()
-	query.Set("shortUrl", shortURL.String())
+	query.Set("shortUrl", shortenedURL.String())
 	shortener.addAPIKey(&query)
 	u.RawQuery = query.Encode()
 
@@ -98,9 +104,9 @@ func (shortener *GoogleShortener) Expand(shortURL *url.URL) (*url.URL, error) {
 	return longURL, nil
 }
 
-// IsShortURL determines whether the URL is shortened.
-func (*GoogleShortener) IsShortURL(u *url.URL) bool {
-	return u.Hostname() == "goog.le"
+// IsShortenedURL determines whether the URL is shortened.
+func (*GoogleShortener) IsShortenedURL(u *url.URL) bool {
+	return u.IsAbs() && hasHTTPScheme(u) && u.Hostname() == "goo.gl" && len(u.Path) > 1
 }
 
 // Name returns the name of GoogleShortener.
@@ -109,7 +115,6 @@ func (*GoogleShortener) Name() string {
 }
 
 // NewGoogleShortener returns an initialized GoogleShortener instance.
-// http.DefaultClient will be used if client is nil.
 // Google highly recommends to use an API key.
 func NewGoogleShortener(apiKey string, client *http.Client) *GoogleShortener {
 	return &GoogleShortener{apiKey, &baseShortener{client}}
@@ -124,7 +129,7 @@ type GoogleShortenerError struct {
 
 func (e *GoogleShortenerError) Error() string {
 	if e.Message != "" {
-		return fmt.Sprintf("Google URL shortener reported failure: %s", e.Message)
+		return fmt.Sprintf("shortener reported failure: %s", e.Message)
 	}
-	return "Google URL shortener reported failure"
+	return "shortener reported failure"
 }

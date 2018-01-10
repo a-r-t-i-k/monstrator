@@ -29,9 +29,6 @@ type configuration struct {
 		Isgd struct {
 			Timeout duration `json:"timeout" env:"ISGD_SHORTENER_TIMEOUT"`
 		} `json:"isgd"`
-		TinyURL struct {
-			Timeout duration `json:"timeout" env:"TINYURL_SHORTENER_TIMEOUT"`
-		} `json:"TinyURL"`
 	} `json:"shorteners"`
 }
 

@@ -1,15 +1,16 @@
 package monstrator
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 )
 
-// Shortener is the interface all URL shortening services implement.
+// Shortener is the interface all URL shorteners implement.
 type Shortener interface {
 	Shorten(longURL *url.URL) (*url.URL, error)
 	Expand(shortURL *url.URL) (*url.URL, error)
-	IsShortURL(u *url.URL) bool
+	IsShortenedURL(u *url.URL) bool
 	Name() string
 }
 
@@ -23,4 +24,13 @@ func (shortener *baseShortener) client() *http.Client {
 		return http.DefaultClient
 	}
 	return shortener.Client
+}
+
+// NotShortenedURLError respresents a not shortened URL.
+type NotShortenedURLError struct {
+	URL *url.URL
+}
+
+func (e NotShortenedURLError) Error() string {
+	return fmt.Sprintf("not shortened URL: %v", e.URL)
 }

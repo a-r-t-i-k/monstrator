@@ -14,11 +14,7 @@ import (
 	"github.com/r3turnz/monstrator"
 )
 
-var (
-	googleShortener  *monstrator.GoogleShortener
-	isgdShortener    *monstrator.IsgdShortener
-	tinyURLShortener *monstrator.TinyURLShortener
-)
+var shorteners []monstrator.Shortener
 
 func main() {
 	flag.Usage = func() {
@@ -61,10 +57,10 @@ func main() {
 	}
 	inlineQueryCacheTimeSeconds = int(config.InlineQueryCacheTime.Duration.Seconds())
 
-	googleShortener = monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
+	shorteners := make([]monstrator.Shortener, 2)
+	shorteners[0] = monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
 		&http.Client{Timeout: config.Shorteners.Google.Timeout.Duration})
-	isgdShortener = monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
-	tinyURLShortener = monstrator.NewTinyURLShortener(&http.Client{Timeout: config.Shorteners.TinyURL.Timeout.Duration})
+	shorteners[1] = monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
 
 	server := &http.Server{ReadTimeout: config.ReadTimeout.Duration, WriteTimeout: config.WriteTimeout.Duration,
 		Handler: http.HandlerFunc(handleUpdate), Addr: config.Address}
@@ -100,14 +96,11 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func isShortURL(u *url.URL) (bool, monstrator.Shortener) {
-	switch {
-	case googleShortener.IsShortURL(u):
-		return true, googleShortener
-	case isgdShortener.IsShortURL(u):
-		return true, isgdShortener
-	case tinyURLShortener.IsShortURL(u):
-		return true, tinyURLShortener
+func isShortenedURL(u *url.URL) (bool, monstrator.Shortener) {
+	for _, shortener := range shorteners {
+		if shortener.IsShortenedURL(u) {
+			return true, shortener
+		}
 	}
 	return false, nil
 }
@@ -131,27 +124,11 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		return
 	}
 
-	if ok, shortener := isShortURL(u); ok {
+	if ok, shortener := isShortenedURL(u); ok {
 		longURL, err := shortener.Expand(u)
 		if err != nil {
 			w.WriteHeader(http.StatusNoContent)
-			logError := func() {
-				log.Printf("failed to expand %v with %s: %v", u, shortener.Name(), err)
-			}
-			switch err := err.(type) {
-			case *monstrator.GoogleShortenerError:
-				if err.Code != 404 {
-					logError()
-				}
-			case *monstrator.IsgdShortenerError:
-				if err.Code != 400 {
-					logError()
-				}
-			case monstrator.TinyURLShortenerError:
-				if err != 404 {
-					logError()
-				}
-			}
+			log.Printf("failed to expand %v with %s: %v", u, shortener.Name(), err)
 			return
 		}
 
@@ -163,34 +140,32 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		return
 	}
 
-	shortURLs := make(map[string]*url.URL)
+	results := make([]interface{}, 0, len(shorteners))
+	m := sync.Mutex{}
 	wg := sync.WaitGroup{}
-	wg.Add(3)
+	wg.Add(len(shorteners))
 	var shorten = func(shortener monstrator.Shortener) {
 		defer wg.Done()
-		shortURL, err := shortener.Shorten(u)
+		shortenedURL, err := shortener.Shorten(u)
 		if err != nil {
 			log.Printf("failed to shorten %v with the %s shortener: %v", u, shortener.Name(), err)
 		} else {
-			shortURLs[shortener.Name()] = shortURL
+			encodedURL := shortenedURL.String()
+			result := &inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
+				InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
+			m.Lock()
+			results = append(results, result)
+			m.Unlock()
 		}
 	}
-	go shorten(googleShortener)
-	go shorten(isgdShortener)
-	go shorten(tinyURLShortener)
+	for _, shortener := range shorteners {
+		go shorten(shortener)
+	}
 	wg.Wait()
 
-	if len(shortURLs) == 0 {
+	if len(results) == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
-	}
-	results := make([]interface{}, len(shortURLs))
-	i := 0
-	for name, shortURL := range shortURLs {
-		encodedURL := shortURL.String()
-		results[i] = &inlineQueryResultArticle{ID: name, Title: name, URL: encodedURL,
-			InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
-		i++
 	}
 	answerInlineQuery(w, q.ID, results)
 }
