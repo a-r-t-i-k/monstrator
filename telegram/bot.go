@@ -176,6 +176,8 @@ func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) 
 	if len(results) == 0 {
 		panic("attempting to answer inline query without results")
 	}
+
+	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
 	err := enc.Encode(map[string]interface{}{
 		"method":          answerInlineQueryMethod,
@@ -183,17 +185,6 @@ func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) 
 		"results":         results,
 		"cache_time":      inlineQueryCacheTimeSeconds})
 	if err != nil {
-		w.WriteHeader(http.StatusNoContent)
-		switch err := err.(type) {
-		case *json.MarshalerError:
-			panic(err)
-		case *json.UnsupportedTypeError:
-			panic(err)
-		case *json.UnsupportedValueError:
-			panic(err)
-		default:
-			log.Printf("failed to answer inline query: %v", err)
-		}
+		panic(err)
 	}
-	w.Header().Set("Content-Type", "application/json")
 }
