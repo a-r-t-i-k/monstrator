@@ -57,7 +57,7 @@ func main() {
 	}
 	inlineQueryCacheTimeSeconds = int(config.InlineQueryCacheTime.Duration.Seconds())
 
-	shorteners := make([]monstrator.Shortener, 2)
+	shorteners = make([]monstrator.Shortener, 2)
 	shorteners[0] = monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
 		&http.Client{Timeout: config.Shorteners.Google.Timeout.Duration})
 	shorteners[1] = monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
@@ -143,7 +143,6 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 	results := make([]interface{}, 0, len(shorteners))
 	m := sync.Mutex{}
 	wg := sync.WaitGroup{}
-	wg.Add(len(shorteners))
 	var shorten = func(shortener monstrator.Shortener) {
 		defer wg.Done()
 		shortenedURL, err := shortener.Shorten(u)
@@ -158,6 +157,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 			m.Unlock()
 		}
 	}
+	wg.Add(len(shorteners))
 	for _, shortener := range shorteners {
 		go shorten(shortener)
 	}
