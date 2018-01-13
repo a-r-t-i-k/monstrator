@@ -2,15 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"net/url"
 )
 
-var baseURL *url.URL
-
-const (
-	answerInlineQueryMethod string = "answerInlineQuery"
-	sendMessageMethod       string = "sendMessage"
-)
+const answerInlineQueryMethod string = "answerInlineQuery"
 
 type update struct {
 	InlineQuery *inlineQuery `json:"inline_query"`
