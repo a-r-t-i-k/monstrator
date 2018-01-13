@@ -195,4 +195,5 @@ func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) 
 			log.Printf("failed to answer inline query: %v", err)
 		}
 	}
+	w.Header().Set("Content-Type", "application/json")
 }
