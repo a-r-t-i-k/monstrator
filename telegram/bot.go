@@ -51,10 +51,6 @@ func main() {
 	if config.Token == "" {
 		log.Fatal("no authentication token")
 	}
-	baseURL, err = url.Parse(fmt.Sprintf("https://api.telegram.org/bot%s/", config.Token))
-	if err != nil {
-		panic(err)
-	}
 	inlineQueryCacheTimeSeconds = int(config.InlineQueryCacheTime.Duration.Seconds())
 
 	shorteners = make([]monstrator.Shortener, 2)
