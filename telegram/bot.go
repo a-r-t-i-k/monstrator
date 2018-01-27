@@ -15,6 +15,7 @@ import (
 )
 
 var shorteners []monstrator.Shortener
+var inlineQueryCacheTimeSeconds int
 
 func main() {
 	flag.Usage = func() {
@@ -84,10 +85,13 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if upd.InlineQuery != nil {
+	switch {
+	case upd.InlineQuery != nil:
 		handleInlineQuery(w, upd.InlineQuery)
-	} else {
-		w.WriteHeader(http.StatusNotFound)
+	case upd.Message != nil:
+		handleMessage(w, upd.Message)
+	default:
+		w.WriteHeader(http.StatusNoContent)
 		log.Print("webhook configured to receive unnecessary updates")
 	}
 }
@@ -102,6 +106,11 @@ func isShortenedURL(u *url.URL) (bool, monstrator.Shortener) {
 }
 
 func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
+	handleAnswerInlineQueryError := func(err error) {
+		if err != nil {
+			log.Printf("failed to answer inline query: %v", err)
+		}
+	}
 	q.ID = strings.TrimSpace(q.ID)
 	if q.ID == "" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -132,8 +141,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		results := []interface{}{
 			&inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
 				InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
-		answerInlineQuery(w, q.ID, results)
-		return
+		handleAnswerInlineQueryError(answerInlineQuery(w, q.ID, results))
 	}
 
 	results := make([]interface{}, 0, len(shorteners))
@@ -163,24 +171,43 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	answerInlineQuery(w, q.ID, results)
+	handleAnswerInlineQueryError(answerInlineQuery(w, q.ID, results))
 }
 
-var inlineQueryCacheTimeSeconds int
-
-func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) {
-	if len(results) == 0 {
-		panic("attempting to answer inline query without results")
+func handleMessage(w http.ResponseWriter, m *message) {
+	if m.Text == nil {
+		sendMessage(w, m.Chat, "Sorry, I only understand text messages.", defaultParseMode)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	enc := json.NewEncoder(w)
-	err := enc.Encode(map[string]interface{}{
-		"method":          answerInlineQueryMethod,
-		"inline_query_id": ID,
-		"results":         results,
-		"cache_time":      inlineQueryCacheTimeSeconds})
-	if err != nil {
-		panic(err)
+	handleMalformedMessage := func(logMessage string) {
+		w.WriteHeader(http.StatusBadRequest)
+		log.Print(logMessage)
+	}
+	switch {
+	case m.ID == "":
+		handleMalformedMessage("empty message ID")
+	case *m.Text == "":
+		handleMalformedMessage("empty message text")
+	case m.Chat == nil:
+		handleMalformedMessage("message from no chat")
+	case m.Chat.ID == 0:
+		handleMalformedMessage("empty chat ID")
+	case m.Sender == nil:
+		handleMalformedMessage("messge with no sender")
+	case m.Sender.FirstName == "":
+		handleMalformedMessage("empty first name of sender")
+	}
+
+	if !strings.HasPrefix(*m.Text, "/") {
+		sendMessage(w, m.Chat, "Sorry, I only can interact through commands.", defaultParseMode)
+	}
+	command := strings.Split(*m.Text, " ")[0]
+	switch command {
+	case "start":
+		sendMessage(w, m.Chat,
+			"Hello %s!\nI can shorten and expand your links through [inline queries](https://core.telegram.org/bots/inline).",
+			markdownParseMode)
+	default:
+		sendMessage(w, m.Chat, "I don't recognize that command.", defaultParseMode)
 	}
 }
