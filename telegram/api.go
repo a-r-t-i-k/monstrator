@@ -28,10 +28,10 @@ type inputTextMessageContent struct {
 }
 
 type message struct {
-	ID     string  `json:"message_id"`
-	Sender *user   `json:"user"`
-	Chat   *chat   `json:"chat"`
-	Text   *string `json:"message"`
+	ID     string `json:"message_id"`
+	Sender *user  `json:"user"`
+	Chat   *chat  `json:"chat"`
+	Text   string `json:"message"`
 }
 
 type user struct {
@@ -57,35 +57,38 @@ func (article *inlineQueryResultArticle) MarshalJSON() ([]byte, error) {
 	}{"article", (*alias)(article)})
 }
 
-func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) error {
+func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) {
 	if len(results) == 0 {
 		panic("attempting to answer inline query without results")
 	}
-	return answerUpdate(w, answerInlineQueryMethod, map[string]interface{}{
+	answerUpdate(w, answerInlineQueryMethod, map[string]interface{}{
 		"inline_query_id": ID,
 		"results":         results,
 		"cache_time":      inlineQueryCacheTimeSeconds})
 }
 
-func sendMessage(w http.ResponseWriter, c *chat, text string, parseMode string) error {
+func sendMessage(w http.ResponseWriter, chatID string, text string, parseMode string) {
 	if len(text) == 0 {
 		panic("attempting to send empty message")
 	}
 	params := map[string]interface{}{
-		"chat_id": c.ID,
+		"chat_id": chatID,
 		"text":    text}
 	if parseMode != "" {
 		params["parse_mode"] = parseMode
 	}
-	return answerUpdate(w, sendMessageMethod, params)
+	answerUpdate(w, sendMessageMethod, params)
 }
 
-func answerUpdate(w http.ResponseWriter, method string, params map[string]interface{}) error {
+func answerUpdate(w http.ResponseWriter, method string, params map[string]interface{}) {
 	if method == "" {
 		panic("attempting to answer update without method")
 	}
 	params["method"] = method
 	w.Header().Set("Content-Type", "application/json")
 	enc := json.NewEncoder(w)
-	return enc.Encode(params)
+	err := enc.Encode(params)
+	if err != nil {
+		panic(err)
+	}
 }

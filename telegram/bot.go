@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -82,6 +83,7 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	err := dec.Decode(&upd)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		log.Printf("invalid update: %v", err)
 		return
 	}
 
@@ -106,29 +108,17 @@ func isShortenedURL(u *url.URL) (bool, monstrator.Shortener) {
 }
 
 func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
-	handleAnswerInlineQueryError := func(err error) {
-		if err != nil {
-			log.Printf("failed to answer inline query: %v", err)
-		}
-	}
-	q.ID = strings.TrimSpace(q.ID)
-	if q.ID == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		log.Print("empty inline query ID")
-		return
-	}
-	q.Text = strings.TrimSpace(q.Text)
 	if q.Text == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-
 	u, err := url.Parse(q.Text)
 	if err != nil || !u.IsAbs() {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
+	var results []interface{}
 	if ok, shortener := isShortenedURL(u); ok {
 		longURL, err := shortener.Expand(u)
 		if err != nil {
@@ -138,76 +128,67 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		}
 
 		encodedURL := longURL.String()
-		results := []interface{}{
+		results = []interface{}{
 			&inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
 				InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
-		handleAnswerInlineQueryError(answerInlineQuery(w, q.ID, results))
-	}
+	} else {
+		results = make([]interface{}, 0, len(shorteners))
+		m := sync.Mutex{}
+		wg := sync.WaitGroup{}
+		var shorten = func(shortener monstrator.Shortener) {
+			defer wg.Done()
+			shortenedURL, err := shortener.Shorten(u)
+			if err != nil {
+				log.Printf("failed to shorten %v with the %s shortener: %v", u, shortener.Name(), err)
+			} else {
+				encodedURL := shortenedURL.String()
+				result := &inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
+					InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
+				m.Lock()
+				results = append(results, result)
+				m.Unlock()
+			}
+		}
+		wg.Add(len(shorteners))
+		for _, shortener := range shorteners {
+			go shorten(shortener)
+		}
+		wg.Wait()
 
-	results := make([]interface{}, 0, len(shorteners))
-	m := sync.Mutex{}
-	wg := sync.WaitGroup{}
-	var shorten = func(shortener monstrator.Shortener) {
-		defer wg.Done()
-		shortenedURL, err := shortener.Shorten(u)
-		if err != nil {
-			log.Printf("failed to shorten %v with the %s shortener: %v", u, shortener.Name(), err)
-		} else {
-			encodedURL := shortenedURL.String()
-			result := &inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
-				InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
-			m.Lock()
-			results = append(results, result)
-			m.Unlock()
+		if len(results) == 0 {
+			w.WriteHeader(http.StatusNoContent)
+			return
 		}
 	}
-	wg.Add(len(shorteners))
-	for _, shortener := range shorteners {
-		go shorten(shortener)
-	}
-	wg.Wait()
-
-	if len(results) == 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-	handleAnswerInlineQueryError(answerInlineQuery(w, q.ID, results))
+	answerInlineQuery(w, q.ID, results)
 }
 
 func handleMessage(w http.ResponseWriter, m *message) {
-	if m.Text == nil {
-		sendMessage(w, m.Chat, "Sorry, I only understand text messages.", defaultParseMode)
-	}
-
-	handleMalformedMessage := func(logMessage string) {
+	if m.Chat == nil {
+		log.Print("message from no chat")
 		w.WriteHeader(http.StatusBadRequest)
-		log.Print(logMessage)
-	}
-	switch {
-	case m.ID == "":
-		handleMalformedMessage("empty message ID")
-	case *m.Text == "":
-		handleMalformedMessage("empty message text")
-	case m.Chat == nil:
-		handleMalformedMessage("message from no chat")
-	case m.Chat.ID == 0:
-		handleMalformedMessage("empty chat ID")
-	case m.Sender == nil:
-		handleMalformedMessage("messge with no sender")
-	case m.Sender.FirstName == "":
-		handleMalformedMessage("empty first name of sender")
 	}
 
-	if !strings.HasPrefix(*m.Text, "/") {
-		sendMessage(w, m.Chat, "Sorry, I only can interact through commands.", defaultParseMode)
-	}
-	command := strings.Split(*m.Text, " ")[0]
-	switch command {
-	case "start":
-		sendMessage(w, m.Chat,
-			"Hello %s!\nI can shorten and expand your links through [inline queries](https://core.telegram.org/bots/inline).",
-			markdownParseMode)
+	var text string
+	parseMode := defaultParseMode
+	switch {
+	case m.Text == "":
+		text = "Sorry, I only understand text messages."
+	case !strings.HasPrefix(m.Text, "/"):
+		text = "Sorry, I only can interact through commands."
 	default:
-		sendMessage(w, m.Chat, "I don't recognize that command.", defaultParseMode)
+		command := strings.Split(m.Text, " ")[0]
+		switch command {
+		case "start":
+			if m.Sender == nil || m.Sender.FirstName == "" {
+				text = "Hello!\nI can shorten and expand your links through [inline queries](https://core.telegram.org/bots/inline)."
+			} else {
+				text = fmt.Sprintf("Hello %s!\nI can shorten and expand your links through [inline queries](https://core.telegram.org/bots/inline).", m.Sender.FirstName)
+			}
+			parseMode = markdownParseMode
+		default:
+			text = "I don't recognize that command."
+		}
 	}
+	sendMessage(w, strconv.Itoa(int(m.Chat.ID)), text, parseMode)
 }

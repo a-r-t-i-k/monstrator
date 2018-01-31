@@ -33,8 +33,7 @@ type configuration struct {
 }
 
 func loadConfigFromJSON(r io.Reader) error {
-	dec := json.NewDecoder(r)
-	err := dec.Decode(config)
+	err := json.NewDecoder(r).Decode(config)
 	return err
 }
 
