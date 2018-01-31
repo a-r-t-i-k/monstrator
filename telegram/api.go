@@ -66,7 +66,7 @@ func answerInlineQuery(w http.ResponseWriter, ID string, results []interface{}) 
 		"cache_time":      inlineQueryCacheTimeSeconds})
 }
 
-func sendMessage(w http.ResponseWriter, chatID string, text string, parseMode string) {
+func sendMessage(w http.ResponseWriter, chatID string, text string, parseMode string, disableWebPagePreview bool) {
 	if len(text) == 0 {
 		panic("attempting to send empty message")
 	}
@@ -75,6 +75,9 @@ func sendMessage(w http.ResponseWriter, chatID string, text string, parseMode st
 		"text":    text}
 	if parseMode != "" {
 		params["parse_mode"] = parseMode
+	}
+	if disableWebPagePreview {
+		params["disable_web_page_preview"] = true
 	}
 	answerUpdate(w, sendMessageMethod, params)
 }

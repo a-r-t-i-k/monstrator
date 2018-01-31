@@ -171,6 +171,7 @@ func handleMessage(w http.ResponseWriter, m *message) {
 
 	var text string
 	parseMode := defaultParseMode
+	disableWebPagePreview := false
 	switch {
 	case m.Text == "":
 		text = "Sorry, I only understand text messages."
@@ -186,9 +187,10 @@ func handleMessage(w http.ResponseWriter, m *message) {
 				text = fmt.Sprintf("Hello %s!\nI can shorten and expand your links through [inline queries](https://core.telegram.org/bots/inline).", m.Sender.FirstName)
 			}
 			parseMode = markdownParseMode
+			disableWebPagePreview = true
 		default:
 			text = "I don't recognize that command."
 		}
 	}
-	sendMessage(w, strconv.Itoa(int(m.Chat.ID)), text, parseMode)
+	sendMessage(w, strconv.Itoa(int(m.Chat.ID)), text, parseMode, disableWebPagePreview)
 }
