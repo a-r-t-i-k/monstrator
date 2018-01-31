@@ -189,7 +189,7 @@ func handleMessage(w http.ResponseWriter, m *message) {
 			parseMode = markdownParseMode
 			disableWebPagePreview = true
 		default:
-			text = "I don't recognize that command."
+			text = "Sorry, I don't recognize that command."
 		}
 	}
 	sendMessage(w, strconv.Itoa(int(m.Chat.ID)), text, parseMode, disableWebPagePreview)
