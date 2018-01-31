@@ -1,7 +1,10 @@
 package main
 
-import "time"
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+	"time"
+)
 
 // duration embeds time.Duration but implements encoding.TextUnmarshaler and json.Unmarshaler.
 type duration struct {
@@ -22,4 +25,18 @@ func (d *duration) UnmarshalText(text []byte) error {
 	var err error
 	d.Duration, err = time.ParseDuration(string(text))
 	return err
+}
+
+// isDomainName checks if a string is a presentation-format domain name.
+// Currently only length is considered because of the many edge cases.
+func isDomainName(s string) bool {
+	if len(s) == 0 || len(s) > 255 {
+		return false
+	}
+	for _, label := range strings.Split(s, ".") {
+		if len(label) > 63 {
+			return false
+		}
+	}
+	return true
 }
