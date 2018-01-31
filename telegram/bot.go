@@ -177,7 +177,7 @@ func handleMessage(w http.ResponseWriter, m *message) {
 	case !strings.HasPrefix(m.Text, "/"):
 		text = "Sorry, I only can interact through commands."
 	default:
-		command := strings.Split(m.Text, " ")[0]
+		command := strings.TrimPrefix(strings.Split(m.Text, " ")[0], "/")
 		switch command {
 		case "start":
 			if m.Sender == nil || m.Sender.FirstName == "" {
