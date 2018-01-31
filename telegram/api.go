@@ -30,7 +30,7 @@ type inputTextMessageContent struct {
 type message struct {
 	Sender *user  `json:"user"`
 	Chat   *chat  `json:"chat"`
-	Text   string `json:"message"`
+	Text   string `json:"text"`
 }
 
 type user struct {
