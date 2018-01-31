@@ -28,7 +28,6 @@ type inputTextMessageContent struct {
 }
 
 type message struct {
-	ID     string `json:"message_id"`
 	Sender *user  `json:"user"`
 	Chat   *chat  `json:"chat"`
 	Text   string `json:"message"`
