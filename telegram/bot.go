@@ -182,9 +182,9 @@ func handleMessage(w http.ResponseWriter, m *message) {
 		switch command {
 		case "start":
 			if m.Sender == nil || m.Sender.FirstName == "" {
-				text = "Hello!\nI can shorten and expand your URLs with [inline queries](https://core.telegram.org/bots/inline)."
+				text = "Hello!\nI can shorten and expand URLs with [inline queries](https://core.telegram.org/bots/inline)."
 			} else {
-				text = fmt.Sprintf("Hello %s!\nI can shorten and expand your URLs with [inline queries](https://core.telegram.org/bots/inline).", m.Sender.FirstName)
+				text = fmt.Sprintf("Hello %s!\nI can shorten and expand URLs with [inline queries](https://core.telegram.org/bots/inline).", m.Sender.FirstName)
 			}
 			parseMode = markdownParseMode
 			disableWebPagePreview = true
