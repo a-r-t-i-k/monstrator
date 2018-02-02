@@ -132,9 +132,8 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 			&inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
 				InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
 	} else {
-		results = make([]interface{}, 0, len(shorteners))
-		m := sync.Mutex{}
 		wg := sync.WaitGroup{}
+		c := make(chan interface{}, len(shorteners))
 		var shorten = func(shortener monstrator.Shortener) {
 			defer wg.Done()
 			shortenedURL, err := shortener.Shorten(u)
@@ -144,9 +143,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 				encodedURL := shortenedURL.String()
 				result := &inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
 					InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
-				m.Lock()
-				results = append(results, result)
-				m.Unlock()
+				c <- result
 			}
 		}
 		wg.Add(len(shorteners))
@@ -154,7 +151,12 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 			go shorten(shortener)
 		}
 		wg.Wait()
+		close(c)
 
+		results = make([]interface{}, len(c))
+		for result := range c {
+			results = append(results, result)
+		}
 		if len(results) == 0 {
 			w.WriteHeader(http.StatusNoContent)
 			return
