@@ -1,3 +1,4 @@
+// Package monstrator provides abstraction over URL shorteners.
 package monstrator
 
 import (
