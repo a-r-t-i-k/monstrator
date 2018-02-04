@@ -134,7 +134,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 	} else {
 		wg := sync.WaitGroup{}
 		c := make(chan interface{}, len(shorteners))
-		var shorten = func(shortener monstrator.Shortener) {
+		shorten := func(shortener monstrator.Shortener) {
 			defer wg.Done()
 			shortenedURL, err := shortener.Shorten(u)
 			if err != nil {
@@ -153,7 +153,7 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		wg.Wait()
 		close(c)
 
-		results = make([]interface{}, len(c))
+		results = make([]interface{}, 0, len(c))
 		for result := range c {
 			results = append(results, result)
 		}
