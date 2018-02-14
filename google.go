@@ -33,7 +33,8 @@ func (shortener *GoogleShortener) addAPIKey(query *url.Values) {
 
 // Shorten requests the shortened URL.
 func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
-	u := googleEndpoint
+	u := new(url.URL)
+	*u = *googleEndpoint
 	query := u.Query()
 	shortener.addAPIKey(&query)
 	u.RawQuery = query.Encode()
@@ -73,7 +74,8 @@ func (shortener *GoogleShortener) Expand(shortenedURL *url.URL) (*url.URL, error
 	if !shortener.IsShortenedURL(shortenedURL) {
 		return nil, NotShortenedURLError{shortenedURL}
 	}
-	u := googleEndpoint
+	u := new(url.URL)
+	*u = *googleEndpoint
 	query := u.Query()
 	query.Set("shortUrl", shortenedURL.String())
 	shortener.addAPIKey(&query)

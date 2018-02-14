@@ -34,7 +34,8 @@ type IsgdShortener struct {
 
 // Shorten requests the shortened URL.
 func (shortener *IsgdShortener) Shorten(longURL *url.URL) (*url.URL, error) {
-	u := isgdShortenEndpoint
+	u := new(url.URL)
+	*u = *isgdShortenEndpoint
 	query := u.Query()
 	query.Add("url", longURL.String())
 	u.RawQuery = query.Encode()
@@ -67,7 +68,8 @@ func (shortener *IsgdShortener) Expand(shortenedURL *url.URL) (*url.URL, error) 
 	if !shortener.IsShortenedURL(shortenedURL) {
 		return nil, NotShortenedURLError{shortenedURL}
 	}
-	u := isgdExpandEndpoint
+	u := new(url.URL)
+	*u = *isgdExpandEndpoint
 	query := u.Query()
 	query.Add("shorturl", shortenedURL.String())
 	u.RawQuery = query.Encode()
