@@ -28,7 +28,7 @@ func (d *duration) UnmarshalText(text []byte) error {
 }
 
 // isDomainName checks if a string is a presentation-format domain name.
-// Currently only length is considered because of the many edge cases.
+// Currently only length is considered due to the many edge cases.
 func isDomainName(s string) bool {
 	if len(s) == 0 || len(s) > 255 {
 		return false
