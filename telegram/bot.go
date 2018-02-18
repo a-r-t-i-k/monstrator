@@ -68,7 +68,7 @@ func main() {
 	thumbnails[isgdShortener] = "/thumbnails/is.gd.jpg"
 	shorteners[1] = isgdShortener
 
-	http.Handle("/thumbnails/", http.FileServer(http.Dir("thumbnails")))
+	http.Handle("/thumbnails/", http.StripPrefix("/thumbnails/", http.FileServer(http.Dir("thumbnails"))))
 	http.HandleFunc("/", handleUpdate)
 
 	server := &http.Server{ReadTimeout: config.ReadTimeout.Duration, WriteTimeout: config.WriteTimeout.Duration, Addr: config.Address}
