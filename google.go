@@ -111,11 +111,6 @@ func (*GoogleShortener) IsShortenedURL(u *url.URL) bool {
 	return u.IsAbs() && hasHTTPScheme(u) && u.Hostname() == "goo.gl" && len(u.Path) > 1
 }
 
-// Name returns the name of GoogleShortener.
-func (*GoogleShortener) Name() string {
-	return "Google"
-}
-
 // NewGoogleShortener returns an initialized GoogleShortener instance.
 // Google highly recommends to use an API key.
 func NewGoogleShortener(apiKey string, client *http.Client) *GoogleShortener {

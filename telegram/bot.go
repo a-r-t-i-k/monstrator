@@ -16,6 +16,8 @@ import (
 )
 
 var shorteners []monstrator.Shortener
+var names = make(map[monstrator.Shortener]string)
+var thumbnails = make(map[monstrator.Shortener]string)
 var inlineQueryCacheTimeSeconds int
 
 func main() {
@@ -56,12 +58,20 @@ func main() {
 	inlineQueryCacheTimeSeconds = int(config.InlineQueryCacheTime.Duration.Seconds())
 
 	shorteners = make([]monstrator.Shortener, 2)
-	shorteners[0] = monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
+	googleShortener := monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
 		&http.Client{Timeout: config.Shorteners.Google.Timeout.Duration})
-	shorteners[1] = monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
+	names[googleShortener] = "Google"
+	thumbnails[googleShortener] = "/thumbnails/google.png"
+	shorteners[0] = googleShortener
+	isgdShortener := monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
+	names[isgdShortener] = "is.gd"
+	thumbnails[isgdShortener] = "/thumbnails/is.gd.jpg"
+	shorteners[1] = isgdShortener
 
-	server := &http.Server{ReadTimeout: config.ReadTimeout.Duration, WriteTimeout: config.WriteTimeout.Duration,
-		Handler: http.HandlerFunc(handleUpdate), Addr: config.Address}
+	http.Handle("/thumbnails/", http.FileServer(http.Dir("thumbnails")))
+	http.HandleFunc("/", handleUpdate)
+
+	server := &http.Server{ReadTimeout: config.ReadTimeout.Duration, WriteTimeout: config.WriteTimeout.Duration, Addr: config.Address}
 	log.Printf("about to listen for updates on %v", config.Address)
 	if config.TLS.Certificate == "" || config.TLS.Key == "" {
 		log.Fatal(server.ListenAndServe())
@@ -89,7 +99,7 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case upd.InlineQuery != nil:
-		handleInlineQuery(w, upd.InlineQuery)
+		handleInlineQuery(w, r, upd.InlineQuery)
 	case upd.Message != nil:
 		handleMessage(w, upd.Message)
 	default:
@@ -107,7 +117,7 @@ func isShortenedURL(u *url.URL) (bool, monstrator.Shortener) {
 	return false, nil
 }
 
-func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
+func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 	if q.Text == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -123,14 +133,14 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 		longURL, err := shortener.Expand(u)
 		if err != nil {
 			w.WriteHeader(http.StatusNoContent)
-			log.Printf("failed to expand %v with %s: %v", u, shortener.Name(), err)
+			log.Printf("failed to expand %v with %s: %v", u, names[shortener], err)
 			return
 		}
 
 		encodedURL := longURL.String()
 		results = []interface{}{
-			&inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
-				InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
+			&inlineQueryResultArticle{ID: names[shortener], Title: names[shortener], Thumbnail: thumbnails[shortener],
+				URL: encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
 	} else {
 		wg := sync.WaitGroup{}
 		c := make(chan interface{}, len(shorteners))
@@ -138,11 +148,11 @@ func handleInlineQuery(w http.ResponseWriter, q *inlineQuery) {
 			defer wg.Done()
 			shortenedURL, err := shortener.Shorten(u)
 			if err != nil {
-				log.Printf("failed to shorten %v with the %s shortener: %v", u, shortener.Name(), err)
+				log.Printf("failed to shorten %v with the %s shortener: %v", u, names[shortener], err)
 			} else {
 				encodedURL := shortenedURL.String()
-				result := &inlineQueryResultArticle{ID: shortener.Name(), Title: shortener.Name(), URL: encodedURL,
-					InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
+				result := &inlineQueryResultArticle{ID: names[shortener], Title: names[shortener], Thumbnail: thumbnails[shortener],
+					URL: encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
 				c <- result
 			}
 		}

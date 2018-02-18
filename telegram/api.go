@@ -44,6 +44,7 @@ type chat struct {
 type inlineQueryResultArticle struct {
 	ID                  string      `json:"id"`
 	Title               string      `json:"title"`
+	Thumbnail           string      `json:"thumb_url"`
 	InputMessageContent interface{} `json:"input_message_content"`
 	URL                 string      `json:"url,ommitempty"`
 }

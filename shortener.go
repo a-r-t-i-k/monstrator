@@ -12,7 +12,6 @@ type Shortener interface {
 	Shorten(longURL *url.URL) (*url.URL, error)
 	Expand(shortURL *url.URL) (*url.URL, error)
 	IsShortenedURL(u *url.URL) bool
-	Name() string
 }
 
 // baseShortener implements common shortener facilities.
