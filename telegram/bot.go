@@ -17,7 +17,7 @@ import (
 
 var shorteners []monstrator.Shortener
 var names = make(map[monstrator.Shortener]string)
-var thumbnails = make(map[monstrator.Shortener]string)
+var thumbnails = make(map[monstrator.Shortener]*url.URL)
 var inlineQueryCacheTimeSeconds int
 
 func main() {
@@ -61,11 +61,17 @@ func main() {
 	googleShortener := monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
 		&http.Client{Timeout: config.Shorteners.Google.Timeout.Duration})
 	names[googleShortener] = "Google"
-	thumbnails[googleShortener] = "/thumbnails/google.png"
+	thumbnails[googleShortener], err = url.Parse("/thumbnails/google.png")
+	if err != nil {
+		panic(err)
+	}
 	shorteners[0] = googleShortener
 	isgdShortener := monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
 	names[isgdShortener] = "is.gd"
-	thumbnails[isgdShortener] = "/thumbnails/is.gd.jpg"
+	thumbnails[isgdShortener], err = url.Parse("/thumbnails/is.gd.jpg")
+	if err != nil {
+		panic(err)
+	}
 	shorteners[1] = isgdShortener
 
 	http.Handle("/thumbnails/", http.StripPrefix("/thumbnails/", http.FileServer(http.Dir("thumbnails"))))
@@ -138,8 +144,9 @@ func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 
 		encodedURL := longURL.String()
 		results = []interface{}{
-			&inlineQueryResultArticle{ID: names[shortener], Title: names[shortener], Thumbnail: thumbnails[shortener],
-				URL: encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
+			&inlineQueryResultArticle{ID: names[shortener], Title: names[shortener],
+				Thumbnail: thumbnails[shortener].String(),
+				URL:       encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
 	} else {
 		wg := sync.WaitGroup{}
 		c := make(chan interface{}, len(shorteners))
@@ -150,8 +157,9 @@ func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 				log.Printf("failed to shorten %v with the %s shortener: %v", u, names[shortener], err)
 			} else {
 				encodedURL := shortenedURL.String()
-				result := &inlineQueryResultArticle{ID: names[shortener], Title: names[shortener], Thumbnail: thumbnails[shortener],
-					URL: encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
+				result := &inlineQueryResultArticle{ID: names[shortener], Title: names[shortener],
+					Thumbnail: thumbnails[shortener].String(),
+					URL:       encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
 				c <- result
 			}
 		}
