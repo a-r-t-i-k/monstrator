@@ -84,7 +84,6 @@ func handleUpdate(w http.ResponseWriter, r *http.Request) {
 	// Ensure update comes from Telegram.
 	if strings.TrimPrefix(r.URL.Path, "/") != config.Token {
 		w.WriteHeader(http.StatusForbidden)
-		log.Printf("unauthorized update from %v", r.RemoteAddr)
 		return
 	}
 
