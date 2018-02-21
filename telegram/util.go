@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -25,6 +27,25 @@ func (d *duration) UnmarshalText(text []byte) error {
 	var err error
 	d.Duration, err = time.ParseDuration(string(text))
 	return err
+}
+
+func assembleAbsoluteURL(rel *url.URL, r *http.Request) *url.URL {
+	u := new(url.URL)
+	*u = *rel
+
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		u.Scheme = proto
+	}
+	if host := r.Header.Get("X-Forwarded-Host"); host != "" {
+		u.Host = host
+	} else if r.Host != "" {
+		u.Host = r.Host
+	}
+
+	if !u.IsAbs() {
+		return nil
+	}
+	return u
 }
 
 // isDomainName checks if a string is a presentation-format domain name.

@@ -122,6 +122,17 @@ func isShortenedURL(u *url.URL) (bool, monstrator.Shortener) {
 	return false, nil
 }
 
+func buildInlineQueryResultArticle(shortener monstrator.Shortener, u *url.URL, r *http.Request) *inlineQueryResultArticle {
+	encodedLongURL := u.String()
+	article := &inlineQueryResultArticle{ID: names[shortener], Title: names[shortener], URL: encodedLongURL,
+		InputMessageContent: &inputTextMessageContent{Text: encodedLongURL}}
+	thumbnailURL := assembleAbsoluteURL(thumbnails[shortener], r)
+	if thumbnailURL != nil {
+		article.Thumbnail = thumbnailURL.String()
+	}
+	return article
+}
+
 func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 	if q.Text == "" {
 		w.WriteHeader(http.StatusNoContent)
@@ -141,12 +152,7 @@ func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 			log.Printf("failed to expand %v with %s: %v", u, names[shortener], err)
 			return
 		}
-
-		encodedURL := longURL.String()
-		results = []interface{}{
-			&inlineQueryResultArticle{ID: names[shortener], Title: names[shortener],
-				Thumbnail: thumbnails[shortener].String(),
-				URL:       encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}}
+		results = []interface{}{buildInlineQueryResultArticle(shortener, longURL, r)}
 	} else {
 		wg := sync.WaitGroup{}
 		c := make(chan interface{}, len(shorteners))
@@ -156,11 +162,7 @@ func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 			if err != nil {
 				log.Printf("failed to shorten %v with the %s shortener: %v", u, names[shortener], err)
 			} else {
-				encodedURL := shortenedURL.String()
-				result := &inlineQueryResultArticle{ID: names[shortener], Title: names[shortener],
-					Thumbnail: thumbnails[shortener].String(),
-					URL:       encodedURL, InputMessageContent: &inputTextMessageContent{Text: encodedURL}}
-				c <- result
+				c <- buildInlineQueryResultArticle(shortener, shortenedURL, r)
 			}
 		}
 		wg.Add(len(shorteners))
