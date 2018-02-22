@@ -16,8 +16,8 @@ import (
 )
 
 var shorteners []monstrator.Shortener
-var names = make(map[monstrator.Shortener]string)
-var thumbnails = make(map[monstrator.Shortener]*url.URL)
+var shortenerNames = make(map[monstrator.Shortener]string)
+var thumbnailURLs = make(map[monstrator.Shortener]*url.URL)
 var inlineQueryCacheTimeSeconds int
 
 func main() {
@@ -60,15 +60,15 @@ func main() {
 	shorteners = make([]monstrator.Shortener, 2)
 	googleShortener := monstrator.NewGoogleShortener(config.Shorteners.Google.APIKey,
 		&http.Client{Timeout: config.Shorteners.Google.Timeout.Duration})
-	names[googleShortener] = "Google"
-	thumbnails[googleShortener], err = url.Parse("/thumbnails/google.png")
+	shortenerNames[googleShortener] = "Google"
+	thumbnailURLs[googleShortener], err = url.Parse("/thumbnails/google.png")
 	if err != nil {
 		panic(err)
 	}
 	shorteners[0] = googleShortener
 	isgdShortener := monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
-	names[isgdShortener] = "is.gd"
-	thumbnails[isgdShortener], err = url.Parse("/thumbnails/is.gd.jpg")
+	shortenerNames[isgdShortener] = "is.gd"
+	thumbnailURLs[isgdShortener], err = url.Parse("/thumbnails/is.gd.jpg")
 	if err != nil {
 		panic(err)
 	}
@@ -124,9 +124,9 @@ func isShortenedURL(u *url.URL) (bool, monstrator.Shortener) {
 
 func buildInlineQueryResultArticle(shortener monstrator.Shortener, u *url.URL, r *http.Request) *inlineQueryResultArticle {
 	encodedLongURL := u.String()
-	article := &inlineQueryResultArticle{ID: names[shortener], Title: names[shortener], URL: encodedLongURL,
+	article := &inlineQueryResultArticle{ID: shortenerNames[shortener], Title: shortenerNames[shortener], URL: encodedLongURL,
 		InputMessageContent: &inputTextMessageContent{Text: encodedLongURL}}
-	thumbnailURL := assembleAbsoluteURL(thumbnails[shortener], r)
+	thumbnailURL := assembleAbsoluteURL(thumbnailURLs[shortener], r)
 	if thumbnailURL != nil {
 		article.Thumbnail = thumbnailURL.String()
 	}
@@ -149,7 +149,7 @@ func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 		longURL, err := shortener.Expand(u)
 		if err != nil {
 			w.WriteHeader(http.StatusNoContent)
-			log.Printf("failed to expand %v with %s: %v", u, names[shortener], err)
+			log.Printf("failed to expand %v with %s: %v", u, shortenerNames[shortener], err)
 			return
 		}
 		results = []interface{}{buildInlineQueryResultArticle(shortener, longURL, r)}
@@ -160,7 +160,7 @@ func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 			defer wg.Done()
 			shortenedURL, err := shortener.Shorten(u)
 			if err != nil {
-				log.Printf("failed to shorten %v with the %s shortener: %v", u, names[shortener], err)
+				log.Printf("failed to shorten %v with the %s shortener: %v", u, shortenerNames[shortener], err)
 			} else {
 				c <- buildInlineQueryResultArticle(shortener, shortenedURL, r)
 			}
