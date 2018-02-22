@@ -139,7 +139,9 @@ func handleInlineQuery(w http.ResponseWriter, r *http.Request, q *inlineQuery) {
 		return
 	}
 	u, err := url.Parse(q.Text)
-	if err != nil || !u.IsAbs() || !isDomainName(u.Hostname()) {
+	hostname := u.Hostname()
+	// Hostname must not be top-level domain name.
+	if err != nil || !u.IsAbs() || !isDomainName(hostname) || !strings.Contains(hostname, ".") {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}

@@ -51,11 +51,11 @@ func assembleAbsoluteURL(rel *url.URL, r *http.Request) *url.URL {
 // isDomainName checks if a string is a presentation-format domain name.
 // Currently only length is considered due to the many edge cases.
 func isDomainName(s string) bool {
-	if len(s) == 0 || len(s) > 255 {
+	if s == "" || len(s) > 255 {
 		return false
 	}
 	for _, label := range strings.Split(s, ".") {
-		if len(label) > 63 {
+		if label == "" || len(label) > 63 {
 			return false
 		}
 	}
