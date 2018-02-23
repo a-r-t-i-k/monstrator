@@ -197,9 +197,9 @@ func handleMessage(w http.ResponseWriter, m *message) {
 	disableWebPagePreview := false
 	switch {
 	case m.Text == "":
-		text = "Sorry, I only understand text messages."
+		text = "I only understand text messages."
 	case !strings.HasPrefix(m.Text, "/"):
-		text = "Sorry, I only can interact through commands."
+		text = "I only can interact through commands."
 	default:
 		command := strings.TrimPrefix(strings.Split(m.Text, " ")[0], "/")
 		switch command {
@@ -211,8 +211,14 @@ func handleMessage(w http.ResponseWriter, m *message) {
 			}
 			parseMode = markdownParseMode
 			disableWebPagePreview = true
+		case "help":
+			text = "I can shorten and expand URLs through [inline queries](https://core.telegram.org/bots/inline)."
+			parseMode = markdownParseMode
+			disableWebPagePreview = true
+		case "settings":
+			text = "No settings are available."
 		default:
-			text = "Sorry, I don't recognize that command."
+			text = "I don't recognize that command."
 		}
 	}
 	sendMessage(w, strconv.FormatInt(m.Chat.ID, 10), text, parseMode, disableWebPagePreview)
