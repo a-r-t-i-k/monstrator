@@ -199,15 +199,15 @@ func handleMessage(w http.ResponseWriter, m *message) {
 	case m.Text == "":
 		text = "Sorry, I only understand text messages."
 	case !strings.HasPrefix(m.Text, "/"):
-		text = "Sorry, I only can interact with commands."
+		text = "Sorry, I only can interact through commands."
 	default:
 		command := strings.TrimPrefix(strings.Split(m.Text, " ")[0], "/")
 		switch command {
 		case "start":
 			if m.Sender == nil || m.Sender.FirstName == "" {
-				text = "Hello!\nI can shorten and expand URLs with [inline queries](https://core.telegram.org/bots/inline)."
+				text = "Hello!\nI can shorten and expand URLs through [inline queries](https://core.telegram.org/bots/inline)."
 			} else {
-				text = fmt.Sprintf("Hello %s!\nI can shorten and expand URLs with [inline queries](https://core.telegram.org/bots/inline).", m.Sender.FirstName)
+				text = fmt.Sprintf("Hello %s!\nI can shorten and expand URLs through [inline queries](https://core.telegram.org/bots/inline).", m.Sender.FirstName)
 			}
 			parseMode = markdownParseMode
 			disableWebPagePreview = true
