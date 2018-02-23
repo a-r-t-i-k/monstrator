@@ -108,7 +108,7 @@ func (shortener *GoogleShortener) Expand(shortenedURL *url.URL) (*url.URL, error
 
 // IsShortenedURL determines whether the URL is shortened.
 func (*GoogleShortener) IsShortenedURL(u *url.URL) bool {
-	return u.IsAbs() && hasHTTPScheme(u) && u.Hostname() == "goo.gl" && len(u.Path) > 1
+	return u.IsAbs() && hasHTTPScheme(u) && u.Hostname() == "goo.gl" && len(u.Path) > 4
 }
 
 // NewGoogleShortener returns an initialized GoogleShortener instance.
