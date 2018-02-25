@@ -30,22 +30,21 @@ func (d *duration) UnmarshalText(text []byte) error {
 }
 
 func assembleAbsoluteURL(rel *url.URL, r *http.Request) *url.URL {
-	u := new(url.URL)
-	*u = *rel
-
+	base := new(url.URL)
 	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
-		u.Scheme = proto
+		base.Scheme = proto
 	}
-	if host := r.Header.Get("X-Forwarded-Host"); host != "" {
-		u.Host = host
+	if host := r.Header.Get("X-Forwarded-Host"); isDomainName(host) {
+		base.Host = host
 	} else if r.Host != "" {
-		u.Host = r.Host
+		base.Host = r.Host
 	}
 
-	if !u.IsAbs() {
+	abs := base.ResolveReference(rel)
+	if !abs.IsAbs() {
 		return nil
 	}
-	return u
+	return abs
 }
 
 // isDomainName checks if a string is a presentation-format domain name.
