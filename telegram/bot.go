@@ -68,7 +68,7 @@ func main() {
 	shorteners[0] = googleShortener
 	isgdShortener := monstrator.NewIsgdShortener(&http.Client{Timeout: config.Shorteners.Isgd.Timeout.Duration})
 	shortenerNames[isgdShortener] = "is.gd"
-	thumbnailURLs[isgdShortener], err = url.Parse("/thumbnails/is.gd.jpg")
+	thumbnailURLs[isgdShortener], err = url.Parse("/thumbnails/is.gd.jpeg")
 	if err != nil {
 		panic(err)
 	}
