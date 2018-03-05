@@ -8,21 +8,10 @@ import (
 	"net/url"
 )
 
-var googleEndpoint *url.URL
-
-func init() {
-	var err error
-	googleEndpoint, err = url.Parse("https://www.googleapis.com/urlshortener/v1/url")
-	if err != nil {
-		panic(err)
-	}
-}
-
 // GoogleShortener communicates with the Google URL shortener API.
-// If Client is nil, http.DefaultClient will be used.
 type GoogleShortener struct {
 	APIKey string
-	*baseShortener
+	Client *http.Client
 }
 
 func (shortener *GoogleShortener) addAPIKey(query *url.Values) {
@@ -33,15 +22,13 @@ func (shortener *GoogleShortener) addAPIKey(query *url.Values) {
 
 // Shorten requests the shortened URL.
 func (shortener *GoogleShortener) Shorten(longURL *url.URL) (*url.URL, error) {
-	u := new(url.URL)
-	*u = *googleEndpoint
-	query := u.Query()
+	query := url.Values{}
 	shortener.addAPIKey(&query)
-	u.RawQuery = query.Encode()
-
+	endpoint := &url.URL{Scheme: "https", Host: "www.googleapis.com", Path: "/urlshortener/v1/url", RawQuery: query.Encode()}
 	buf := new(bytes.Buffer)
 	json.NewEncoder(buf).Encode(map[string]string{"longUrl": longURL.String()})
-	resp, err := shortener.client().Post(u.String(), "application/json", buf)
+
+	resp, err := shortener.Client.Post(endpoint.String(), "application/json", buf)
 	if err != nil {
 		return nil, err
 	}
@@ -74,14 +61,11 @@ func (shortener *GoogleShortener) Expand(shortenedURL *url.URL) (*url.URL, error
 	if !shortener.IsShortenedURL(shortenedURL) {
 		return nil, NotShortenedURLError{shortenedURL}
 	}
-	u := new(url.URL)
-	*u = *googleEndpoint
-	query := u.Query()
-	query.Set("shortUrl", shortenedURL.String())
+	query := url.Values{"shortUrl": []string{shortenedURL.String()}}
 	shortener.addAPIKey(&query)
-	u.RawQuery = query.Encode()
+	endpoint := &url.URL{Scheme: "https", Host: "www.googleapis.com", Path: "/urlshortener/v1/url", RawQuery: query.Encode()}
 
-	resp, err := shortener.client().Get(u.String())
+	resp, err := shortener.Client.Get(endpoint.String())
 	if err != nil {
 		return nil, err
 	}
@@ -113,8 +97,12 @@ func (*GoogleShortener) IsShortenedURL(u *url.URL) bool {
 
 // NewGoogleShortener returns an initialized GoogleShortener instance.
 // Google highly recommends to use an API key.
+// If client is nil, http.DefaultClient will be used.
 func NewGoogleShortener(apiKey string, client *http.Client) *GoogleShortener {
-	return &GoogleShortener{apiKey, &baseShortener{client}}
+	if client == nil {
+		return &GoogleShortener{APIKey: apiKey, Client: http.DefaultClient}
+	}
+	return &GoogleShortener{APIKey: apiKey, Client: client}
 }
 
 // GoogleShortenerError represents an error returned by the Google URL shortener API.

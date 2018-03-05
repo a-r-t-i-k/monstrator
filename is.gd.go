@@ -7,40 +7,21 @@ import (
 	"strings"
 )
 
-var isgdShortenEndpoint *url.URL
-var isgdExpandEndpoint *url.URL
-
-func init() {
-	var err error
-	isgdShortenEndpoint, err = url.Parse("https://is.gd/create.php?format=simple")
-	if err != nil {
-		panic(err)
-	}
-	isgdExpandEndpoint, err = url.Parse("https://is.gd/forward.php?format=simple")
-	if err != nil {
-		panic(err)
-	}
-}
-
 func trimIsgdShortenerErrorMessagePrefix(message string) string {
 	return strings.TrimPrefix(message, "Error: ")
 }
 
 // IsgdShortener communicates with the is.gd URL shortener API.
-// If Client is nil, http.DefaultClient will be used.
 type IsgdShortener struct {
-	*baseShortener
+	Client *http.Client
 }
 
 // Shorten requests the shortened URL.
 func (shortener *IsgdShortener) Shorten(longURL *url.URL) (*url.URL, error) {
-	u := new(url.URL)
-	*u = *isgdShortenEndpoint
-	query := u.Query()
-	query.Add("url", longURL.String())
-	u.RawQuery = query.Encode()
+	query := url.Values{"format": []string{"simple"}, "url": []string{longURL.String()}}
+	endpoint := &url.URL{Scheme: "https", Host: "is.gd", Path: "/create.php", RawQuery: query.Encode()}
 
-	resp, err := shortener.client().Get(u.String())
+	resp, err := shortener.Client.Get(endpoint.String())
 	if err != nil {
 		return nil, err
 	}
@@ -68,13 +49,10 @@ func (shortener *IsgdShortener) Expand(shortenedURL *url.URL) (*url.URL, error) 
 	if !shortener.IsShortenedURL(shortenedURL) {
 		return nil, NotShortenedURLError{shortenedURL}
 	}
-	u := new(url.URL)
-	*u = *isgdExpandEndpoint
-	query := u.Query()
-	query.Add("shorturl", shortenedURL.String())
-	u.RawQuery = query.Encode()
+	query := url.Values{"format": []string{"simple"}, "shorturl": []string{shortenedURL.String()}}
+	endpoint := &url.URL{Scheme: "https", Host: "is.gd", Path: "/forward.php", RawQuery: query.Encode()}
 
-	resp, err := shortener.client().Get(u.String())
+	resp, err := shortener.Client.Get(endpoint.String())
 	if err != nil {
 		return nil, err
 	}
@@ -100,8 +78,12 @@ func (*IsgdShortener) IsShortenedURL(u *url.URL) bool {
 }
 
 // NewIsgdShortener returns an initialized IsgdShortener instance.
+// If client is nil, http.DefaultClient will be used.
 func NewIsgdShortener(client *http.Client) *IsgdShortener {
-	return &IsgdShortener{&baseShortener{client}}
+	if client == nil {
+		return &IsgdShortener{Client: http.DefaultClient}
+	}
+	return &IsgdShortener{Client: client}
 }
 
 // IsgdShortenerError represents an error returned by the is.gd URL shortener.
